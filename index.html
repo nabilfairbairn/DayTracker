@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Daily Task Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Daily Task Tracker</h1>
+  <form id="task-form">
+    <label for="activity">Activity:</label>
+    <select id="activity" name="Activities" required>
+      <option value="Invite Friends Over" data-score="25">Invite Friends Over (25)</option>
+      <option value="Exercise" data-score="20">Exercise (20)</option>
+      <option value="Exercise at Home" data-score="10">Exercise at Home (10)</option>
+      <option value="Cook Meal" data-score="15">Cook Meal (15)</option>
+      <option value="Eat Out" data-score="-10">Eat Out (-10)</option>
+      <option value="Junk Food Meal" data-score="-15">Junk Food Meal (-15)</option>
+      <option value="Water Plants" data-score="5">Water Plants (5)</option>
+      <option value="Reading" data-score="10">Reading (10)</option>
+      <option value="Walk Outside" data-score="10">Walk Outside (10)</option>
+      <option value="Awake past 1am" data-score="-15">Awake past 1am (-15)</option>
+      <option value="Asleep by 11:30" data-score="15">Asleep by 11:30 (15)</option>
+      <option value="Clean Small" data-score="5">Clean Small (5)</option>
+      <option value="Clean Medium" data-score="10">Clean Medium (10)</option>
+      <option value="Clean Large" data-score="15">Clean Large (15)</option>
+      <option value="Dance" data-score="10">Dance (10)</option>
+      <option value="Sports" data-score="25">Sports (25)</option>
+
+    </select>
+
+    <label for="event-date">Date:</label>
+    <input type="datetime-local" id="event-date" required>
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <button id="chlo_button" style="display:none">Chlo, is that you?</button>
+
+  <canvas id="activity-chart" width="400" height="200"></canvas>
+
+  <script src="script.js"></script>
+  <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+  <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
+</html>
