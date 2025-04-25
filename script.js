@@ -186,6 +186,7 @@ function getValues(spreadsheetId, range, callback) {
       const data = response.result.values;
       console.log('data retrieved')
       chart_data = parse_sheet_data(data)
+      makechlobuttonvisible()
       if (callback) callback(chart_data);
     });
   } catch (err) {
@@ -193,6 +194,10 @@ function getValues(spreadsheetId, range, callback) {
     console.log(err.message);
     return;
   }
+}
+
+function makechlobuttonvisible() {
+  chlobutton.style.display = 'block'
 }
 
 function handleAuthClick() {
