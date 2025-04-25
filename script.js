@@ -92,7 +92,7 @@ form.addEventListener("submit", async (e) => {
 
 chlobutton.addEventListener('click', (e) => {
   e.preventDefault();
-  alert('Be my girlfriend?')
+  alert('What would you say if I call you my girlfriend and you call me your boyfriend?')
 })
 
 
