@@ -43,13 +43,11 @@ sortActivitiesByScoreDesc()
 
 window.addEventListener("load", function() {
   var now = new Date();
-  var utcString = now.toISOString().substring(0,19);
   var year = now.getFullYear();
   var month = now.getMonth() + 1;
   var day = now.getDate();
   var hour = now.getHours();
   var minute = now.getMinutes();
-  var second = now.getSeconds();
   var localDatetime = year + "-" +
                     (month < 10 ? "0" + month.toString() : month) + "-" +
                     (day < 10 ? "0" + day.toString() : day) + "T" +
@@ -112,6 +110,21 @@ chlobutton.addEventListener('click', (e) => {
   e.preventDefault();
   alert('What would you say if I call you my girlfriend and you call me your boyfriend?')
 })
+
+function tokenManagement() {
+  // read last token management date
+  // if date is before today, run
+
+  // for each day, pull 1 week net balance
+  // if balance > 100, add Earn Token row for that day
+  
+  // read token activities
+  // if any have expiry on the day and are not used, write a 1 there
+
+  // overwrite last token management date to today's date
+  return
+}
+
 
 
 async function updateChart(chart_data) {
