@@ -70,6 +70,17 @@ function current_date_hours_minutes() {
   return formatted
 }
 
+function current_date_date() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+  const day = String(now.getDate()).padStart(2, '0');
+
+  const formatted = `${year}-${month}-${day}`;
+  return formatted
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -77,32 +88,14 @@ form.addEventListener("submit", async (e) => {
   const eventDate = document.getElementById("event-date").value.replace('T', ' '); 
   const recordedDate = current_date_hours_minutes();
 
-  console.log(eventDate)
-  console.log(recordedDate)
+  let range = 'Activities!A1:C1'
+  let values = [[eventDate, activity, recordedDate]]
 
-  const body = {
-    values: [[eventDate, activity, recordedDate]]
-  };
+  await appendValues(sheet_id, range, values)
 
-  try {
-    gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: sheet_id,
-      range: 'Activities!A1:C1',
-      valueInputOption: 'USER_ENTERED',
-      resource: body,
-      insertDataOption: 'INSERT_ROWS'
-    }).then(async (response) => {
-      const result = response.result;
-      console.log(`${result.updates.updatedCells} cells appended.`);
-      
-      form.reset();
-      getValues(sheet_id, activity_sheet_range, updateChart);
-    });
-  } catch (err) {
-    console.error(err.message);
-    return;
-  }
-
+  form.reset();
+  values = await getValues(sheet_id, activity_sheet_range);
+  updateChart(values)
   
 });
 
@@ -111,20 +104,135 @@ chlobutton.addEventListener('click', (e) => {
   alert('What would you say if I call you my girlfriend and you call me your boyfriend?')
 })
 
-function tokenManagement() {
+async function appendValues(spreadsheetId, range, values) { // values must be 2 nested arrays
+  const body = {
+    values: values
+  };
+
+  try {
+    const response = await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId,
+      range: range,
+      valueInputOption: 'USER_ENTERED',
+      resource: body,
+      insertDataOption: 'INSERT_ROWS'
+    });
+    
+  } catch (err) {
+    console.log('Error:');
+    console.log(err.message);
+    throw err; // rethrow so caller knows there was an error
+  }
+}
+
+async function tokenManagement() {
   // read last token management date
+  let range = 'Token Acquisition'
+  let last_date_str = await getValues(sheet_id, range)
+  last_date_str = last_date_str.LastTokenEvalDate[0] 
+
+  range = 'Token Activities'
+  let token_activities = await getValues(sheet_id, range)
+  console.log(token_activities)
+  let used_expired = token_activities['IsSpent/Expired']
+  let expiry_dates = token_activities['ExpiryDate']
+
+  const last_date = new Date(last_date_str);
+  last_date.setHours(0, 0, 0, 0);
+
+  const today = new Date()
+  today.setHours(0,0,0,0)
+
   // if date is before today, run
+  if (isStrictlyBeforeToday(last_date)) {
+    range = '2 weeks of Activity Balances'
+    let week_balances = await getValues(sheet_id, range)
+    // for each day between lastmanagementdate and today, pull 1 week net balance
+    const first_date_index = week_balances.Day.findIndex(dateStr => new Date(dateStr) > last_date && new Date(dateStr) <= today); // Find the index of the first date greater than DateA
+   
+    // if balance > 100, add Earn Token row for that day
+    let dates_to_give_tokens = []
+    let dates_to_expire_tokens = []
+    for (let i = first_date_index; i < week_balances['1weeknetBalance'].length - 1; i++) { // - 2 so doesn't calculate for tomorrow
+      let date_to_consider = week_balances['Day'][i]
+      let balance_to_consider = week_balances['1weeknetBalance'][i]
 
-  // for each day, pull 1 week net balance
-  // if balance > 100, add Earn Token row for that day
+      
+      if (balance_to_consider >= 100) {
+        dates_to_give_tokens.push(date_to_consider)
+      }
+
+      // read token activities
+      // if any have expiry on the day and are not used, write a 1 there
+
+      for (let i = 0; i < expiry_dates.length; i++) {
+        let exp_date = expiry_dates[i]
+        if (exp_date == date_to_consider && used_expired[i] != 1) {
+          dates_to_expire_tokens.push(i)
+        }
+      }
+    }
+
+    range = 'Token Activities'
+    if (dates_to_give_tokens.length > 0) {
+      
+      let activity_name = 'Earn Token'
+      dates_to_give_tokens.forEach(async (day) => {
+        await appendValues(sheet_id, 'Token Activities', [[activity_name, day]])
+        
+      })
+    }
+
+    if (dates_to_expire_tokens > 0) {
+      dates_to_expire_tokens.forEach(async (idx) => {
+        let row_num = idx + 2
+        let range = `'Token Activities'!L${row_num}`
+        await write_in_range(sheet_id, range, [[1]])
+      })
+    }
+    // overwrite last token management date to today's date
+    const today_str = current_date_date()
+    await write_in_range(sheet_id, `'Token Acquisition'!A2`, [[today_str]])
+
+
+  }
+
   
-  // read token activities
-  // if any have expiry on the day and are not used, write a 1 there
-
-  // overwrite last token management date to today's date
   return
 }
 
+
+async function write_in_range(spreadsheetId, range, values) {
+  // let values = [
+  //   [
+  //     // Cell values ...
+  //   ],
+  //   // Additional rows ...
+  // ];
+  // values = _values;
+  const body = {
+    values: values,
+  };
+  try {
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId,
+      range: range,
+      valueInputOption: 'USER_ENTERED',
+      resource: body,
+    })
+  } catch (err) {
+    console.error(err)
+    return;
+  }
+}
+
+
+function isStrictlyBeforeToday(dateToCheck) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return dateToCheck.getTime() < today.getTime();
+}
 
 
 async function updateChart(chart_data) {
@@ -207,25 +315,29 @@ function gisLoaded() {
   gisInited = true;
 }
 
-function getValues(spreadsheetId, range, callback) {
+async function getValues(spreadsheetId, range) {
   try {
-    gapi.client.sheets.spreadsheets.values.get({
+    const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
       range: range,
       majorDimension: 'COLUMNS'
-    }).then((response) => {
-      const data = response.result.values;
-      console.log('data retrieved')
-      chart_data = parse_sheet_data(data)
-      makechlobuttonvisible()
-      if (callback) callback(chart_data);
     });
+
+    const data = response.result.values;
+    console.log('data retrieved');
+
+    const chart_data = parse_sheet_data(data);
+    makechlobuttonvisible();
+
+    return chart_data;
+    
   } catch (err) {
-    console.log('Error:')
+    console.log('Error:');
     console.log(err.message);
-    return;
+    throw err; // rethrow so caller knows there was an error
   }
 }
+
 
 function makechlobuttonvisible() {
   chlobutton.style.display = 'block'
@@ -236,7 +348,10 @@ function handleAuthClick() {
     if (resp.error !== undefined) {
       throw (resp);
     }
-    getValues(sheet_id, activity_sheet_range, updateChart);
+    tokenManagement()
+    let values = await getValues(sheet_id, activity_sheet_range);
+    updateChart(values)
+    
   };
 
   if (gapi.client.getToken() === null) {
