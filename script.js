@@ -1,7 +1,9 @@
 const form = document.getElementById("task-form");
-const chartCanvas = document.getElementById("activity-chart");
+const activityChartCanvas = document.getElementById("activity-chart");
+const tokenChartCanvas = document.getElementById("token-chart");
 const chlobutton = document.getElementById('chlo_button')
-let chart;
+let activityChart;
+let tokenChart
 
 const oauth_client = '675594961841-djeb0787v1g6afhbs6pf4ljt3q7c1ou9.apps.googleusercontent.com'
 const oauth_secret = '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'
@@ -11,8 +13,6 @@ const API_KEY = 'AIzaSyCVz393At5pi7E1bQFp0ZaYs1oHB6_ShBE';
 const APPEND_URL = `${SHEET_API_URL}/Sheet1:append?valueInputOption=USER_ENTERED&key=${API_KEY}`;
 const CHART_DATA_URL = `${SHEET_API_URL}/ChartData!A1:D?key=${API_KEY}`;  // ChartData should have preprocessed values
 const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
-
-const activity_sheet_range = '2 weeks of Activity Balances'
 
 let chart_data = []
 
@@ -94,8 +94,7 @@ form.addEventListener("submit", async (e) => {
   await appendValues(sheet_id, range, values)
 
   form.reset();
-  values = await getValues(sheet_id, activity_sheet_range);
-  updateChart(values)
+  updateActivitiesChart()
   
 });
 
@@ -133,7 +132,6 @@ async function tokenManagement() {
 
   range = 'Token Activities'
   let token_activities = await getValues(sheet_id, range)
-  console.log(token_activities)
   let used_expired = token_activities['IsSpent/Expired']
   let expiry_dates = token_activities['ExpiryDate']
 
@@ -235,16 +233,60 @@ function isStrictlyBeforeToday(dateToCheck) {
 }
 
 
-async function updateChart(chart_data) {
-  const { Day, PositiveInDay, NegativeinDay } = chart_data;
+async function updateActivitiesChart() {
+  let range = '2 weeks of Activity Balances'
+  let chart_data = await getValues(sheet_id, range);
+
+  const { Day, PositiveInDay, NegativeinDay, ActivitiesInDay } = chart_data;
   const oneweekbalances = chart_data['1weeknetBalance']
   const days = Day
   const positives = PositiveInDay
   const negatives = NegativeinDay
+  const activities = ActivitiesInDay // TODO: separate positive and negative activities
 
-  if (chart) chart.destroy();
+  if (activityChart) activityChart.destroy();
 
-  chart = new Chart(chartCanvas, {
+  let positive_tooltip_func = {
+    callbacks: {
+        label: function(context) {
+          const labelLines = [];
+          const value = context.parsed.y;
+          const activityList = activities[context.dataIndex];
+      
+          labelLines.push(`Positive Activities: ${value}`);
+          labelLines.push('Activities:');
+      
+          // Split by comma, trim, and add each activity on a new line
+          const activityItems = activityList.split(',').map(item => item.trim());
+          labelLines.push(...activityItems);
+      
+          return labelLines;
+        }
+    }
+  }
+
+  let negative_tooltip_func = {
+    callbacks: {
+        label: function(context) {
+          const labelLines = [];
+          const value = context.parsed.y;
+          const activityList = activities[context.dataIndex];
+      
+          labelLines.push(`Positive Activities: ${value}`);
+          labelLines.push('Activities:');
+      
+          // Split by comma, trim, and add each activity on a new line
+          const activityItems = activityList.split(',').map(item => item.trim());
+          labelLines.push(...activityItems);
+      
+          return labelLines;
+        }
+    }
+  }
+
+
+
+  activityChart = new Chart(activityChartCanvas, {
     data: {
       labels: days,
       datasets: [
@@ -253,7 +295,9 @@ async function updateChart(chart_data) {
           label: "Positive Activities",
           data: positives,
           backgroundColor: "rgba(75, 192, 192, 0.7)",
-          stack: 'combined' // needed?
+          stack: 'combined', // needed?
+          tooltip: positive_tooltip_func
+            
         },
         {
           type: 'bar',
@@ -283,6 +327,116 @@ async function updateChart(chart_data) {
       }
     }
   });
+}
+
+async function updateTokenChart() {
+  let range = '2 weeks of Token Balances'
+  let chart_data = await getValues(sheet_id, range);
+
+  const { Day, TokensEarned, TokensSpent, TokensExpired, EODTokenBalance } = chart_data;
+  const days = Day
+
+  let earned_data = []
+  let spent_data = []
+  let expired_data = []
+  let balance_data = []
+
+  TokensEarned.forEach((val, idx) => {
+    let day = days[idx]
+    let spent = TokensSpent[idx]
+    let expired = TokensExpired[idx]
+    let balance = EODTokenBalance[idx]
+    // for (i = 1; i++; i<=val) {
+    //   earned_data.push({x: day, y: i})
+    // }
+
+    if (val > 0) {
+      earned_data.push({'x': day, 'y': val})
+    }
+    let neg = 0
+    if (spent > 0) {
+      spent_data.push({'X': day, 'y': spent})
+      neg -= 1
+    }
+    if (expired > 0) {
+      expired_data.push({'X': day, 'y': expired+neg})
+    }
+    balance_data.push(balance)
+  
+  })
+
+
+  if (tokenChart) tokenChart.destroy();
+
+  tokenChart = new Chart(tokenChartCanvas, {
+    data: {
+      labels: days,
+      datasets: [
+        {
+          type: 'scatter',
+          label: "Earned",
+          data: earned_data,
+          backgroundColor: "rgb(75, 192, 192)",
+          order: 2
+        },
+        {
+          type: 'scatter',
+          label: "Expired",
+          data: expired_data,
+          backgroundColor: "rgb(255, 138, 29)",
+          order: 2 
+        },
+        {
+          type: 'scatter',
+          label: "Spent",
+          data: spent_data,
+          backgroundColor: "rgb(33, 214, 27)",
+          order: 2
+        },
+        {
+          type: 'line',
+          label: "EOD Balance",
+          data: EODTokenBalance,
+          backgroundColor: "rgb(174, 62, 189)",
+          order: 1
+        }
+      ]
+    },
+    options: {
+      datasets: {
+        scatter: {
+          elements: {
+            point: {
+              radius: 10
+            }
+        }
+      }
+    },
+      responsive: true,
+      scales: {
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        },
+        x: {
+          type: 'category'
+        }
+      }
+    }
+  });
+}
+
+
+async function updateTokens() {
+  let values = await getValues(sheet_id, 'Current Tokens')
+  let current_tokens = values['TotalTokens'][0]
+  let today_tokens = values['TodayTokenBalance'][0]
+
+  document.getElementById('total_tokens').innerText = current_tokens
+  document.getElementById('today_tokens').innerText = today_tokens
 }
 
 
@@ -327,7 +481,7 @@ async function getValues(spreadsheetId, range) {
     console.log('data retrieved');
 
     const chart_data = parse_sheet_data(data);
-    makechlobuttonvisible();
+    
 
     return chart_data;
     
@@ -348,10 +502,12 @@ function handleAuthClick() {
     if (resp.error !== undefined) {
       throw (resp);
     }
+    makechlobuttonvisible();
     tokenManagement()
-    let values = await getValues(sheet_id, activity_sheet_range);
-    updateChart(values)
     
+    updateActivitiesChart()
+    updateTokens()
+    updateTokenChart()
   };
 
   if (gapi.client.getToken() === null) {
