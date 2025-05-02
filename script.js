@@ -237,12 +237,13 @@ async function updateActivitiesChart() {
   let range = '2 weeks of Activity Balances'
   let chart_data = await getValues(sheet_id, range);
 
-  const { Day, PositiveInDay, NegativeinDay, ActivitiesInDay } = chart_data;
+  const { Day, PositiveInDay, NegativeinDay, PositiveActivitiesInDay, NegativeActivitiesInDay } = chart_data;
   const oneweekbalances = chart_data['1weeknetBalance']
   const days = Day
   const positives = PositiveInDay
   const negatives = NegativeinDay
-  const activities = ActivitiesInDay // TODO: separate positive and negative activities
+  const p_activities = PositiveActivitiesInDay // TODO: separate positive and negative activities
+  const n_activities = NegativeActivitiesInDay
 
   if (activityChart) activityChart.destroy();
 
@@ -251,10 +252,9 @@ async function updateActivitiesChart() {
         label: function(context) {
           const labelLines = [];
           const value = context.parsed.y;
-          const activityList = activities[context.dataIndex];
+          const activityList = p_activities[context.dataIndex];
       
-          labelLines.push(`Positive Activities: ${value}`);
-          labelLines.push('Activities:');
+          labelLines.push(` +${value}:`);
       
           // Split by comma, trim, and add each activity on a new line
           const activityItems = activityList.split(',').map(item => item.trim());
@@ -270,10 +270,9 @@ async function updateActivitiesChart() {
         label: function(context) {
           const labelLines = [];
           const value = context.parsed.y;
-          const activityList = activities[context.dataIndex];
+          const activityList = n_activities[context.dataIndex];
       
-          labelLines.push(`Positive Activities: ${value}`);
-          labelLines.push('Activities:');
+          labelLines.push(` ${value}:`);
       
           // Split by comma, trim, and add each activity on a new line
           const activityItems = activityList.split(',').map(item => item.trim());
@@ -304,7 +303,8 @@ async function updateActivitiesChart() {
           label: "Negative Activities",
           data: negatives,
           backgroundColor: "rgba(255, 99, 132, 0.7)",
-          stack: 'combined'
+          stack: 'combined',
+          tooltip: negative_tooltip_func
         },
         {
           type: 'line',
@@ -534,6 +534,6 @@ function parse_sheet_data(data) {
 
 setTimeout(() => {
   handleAuthClick()
-}, 1000);
+}, 2000);
 
 
