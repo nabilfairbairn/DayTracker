@@ -128,8 +128,6 @@ async function tokenManagement() {
   let range = 'Token Acquisition'
   let last_date_str = await getValues(sheet_id, range)
   last_date_str = last_date_str.LastTokenEvalDate[0] 
-  console.log(last_date_str)
-  last_date_str = '4/28/2025'
 
   range = 'Token Activities'
   let token_activities = await getValues(sheet_id, range)
