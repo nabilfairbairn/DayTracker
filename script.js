@@ -93,7 +93,6 @@ form.addEventListener("submit", async (e) => {
 
   await appendValues(sheet_id, range, values)
 
-  form.reset();
   updateActivitiesChart()
   
 });
