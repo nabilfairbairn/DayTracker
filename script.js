@@ -129,6 +129,8 @@ async function tokenManagement() {
   let range = 'Token Acquisition'
   let last_date_str = await getValues(sheet_id, range)
   last_date_str = last_date_str.LastTokenEvalDate[0] 
+  console.log(last_date_str)
+  last_date_str = '4/28/2025'
 
   range = 'Token Activities'
   let token_activities = await getValues(sheet_id, range)
@@ -181,21 +183,21 @@ async function tokenManagement() {
       })
     }
 
-    if (dates_to_expire_tokens > 0) {
+    if (dates_to_expire_tokens.length > 0) {
+      console.log('expiring')
       dates_to_expire_tokens.forEach(async (idx) => {
         let row_num = idx + 2
         let range = `'Token Activities'!L${row_num}`
         await write_in_range(sheet_id, range, [[1]])
+        range = `'Token Activities'!A1:B1`
+        let exp_date = expiry_dates[idx]
+        await appendValues(sheet_id, range, [['Token Expire', exp_date]])
       })
     }
     // overwrite last token management date to today's date
     const today_str = current_date_date()
     await write_in_range(sheet_id, `'Token Acquisition'!A2`, [[today_str]])
-
-
   }
-
-  
   return
 }
 
@@ -497,13 +499,13 @@ function makechlobuttonvisible() {
   chlobutton.style.display = 'block'
 }
 
-function handleAuthClick() {
+async function handleAuthClick() {
   tokenClient.callback = async (resp) => {
     if (resp.error !== undefined) {
       throw (resp);
     }
     makechlobuttonvisible();
-    tokenManagement()
+    await tokenManagement()
     
     updateActivitiesChart()
     updateTokens()
